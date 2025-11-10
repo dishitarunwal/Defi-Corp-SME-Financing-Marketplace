@@ -12,6 +12,15 @@ const loanRoutes = require('./routes/loan');
 
 const app = express();
 
+// CORS configuration
+app.use(cors({
+  origin: [
+    'http://localhost:5173',  // Local development
+    'https://your-vercel-app-url.vercel.app'  // Replace with your Vercel app URL
+  ],
+  credentials: true
+}));
+
 // Connect to MongoDB
 connectDB();
 
