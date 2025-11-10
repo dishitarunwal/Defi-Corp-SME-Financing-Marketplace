@@ -93,32 +93,22 @@ const getLoanApplications = async (req, res) => {
     if (status) filter.application_status = status;
     if (risk_grade) filter.risk_grade = risk_grade;
 
-    // Use lean() to get plain objects and avoid Mongoose trying to cast string refs to ObjectId
     const applications = await LoanApplication.find(filter)
+      .populate({
+        path: 'sme_id',
+        model: 'SME',
+        select: 'company_name industry_sector credit_score esg_score trust_score'
+      })
       .sort({ submitted_at: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean();
+      .skip((page - 1) * limit);
 
     const total = await LoanApplication.countDocuments(filter);
-
-    // Manually populate SME details since `sme_id` is a custom string identifier (not ObjectId)
-    const smeIds = Array.from(new Set(applications.map(a => a.sme_id).filter(Boolean)));
-    let smeMap = {};
-    if (smeIds.length > 0) {
-      const smes = await SME.find({ sme_id: { $in: smeIds } }).select('sme_id company_name industry_sector credit_score esg_score trust_score').lean();
-      smeMap = smes.reduce((acc, s) => ({ ...acc, [s.sme_id]: s }), {});
-    }
-
-    const appsWithSme = applications.map(app => ({
-      ...app,
-      sme: smeMap[app.sme_id] || null
-    }));
 
     res.json({
       success: true,
       data: {
-        applications: appsWithSme,
+        applications,
         pagination: {
           current_page: parseInt(page),
           total_pages: Math.ceil(total / limit),
@@ -186,7 +176,6 @@ const approveLoan = async (req, res) => {
 
     // Create loan details
     const loanDetails = new LoanDetails({
-      loan_id: `loan_${application.application_id}`,
       application_id: application.application_id,
       sme_id: application.sme_id,
       corporate_id: corporate.corporate_id,
@@ -285,8 +274,17 @@ const getLoanDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Use lean() and manual population because `sme_id` and `corporate_id` are custom string IDs
-    const loanDetails = await LoanDetails.findOne({ loan_id: id }).lean();
+    const loanDetails = await LoanDetails.findOne({ loan_id: id })
+      .populate({
+        path: 'sme_id',
+        model: 'SME',
+        select: 'company_name industry_sector credit_score esg_score trust_score'
+      })
+      .populate({
+        path: 'corporate_id',
+        model: 'Corporate',
+        select: 'corporation_name'
+      });
 
     if (!loanDetails) {
       return res.status(404).json({
@@ -295,22 +293,12 @@ const getLoanDetails = async (req, res) => {
       });
     }
 
-    // Fetch associated SME and Corporate by their custom IDs
-    const [smeRecord, corporateRecord] = await Promise.all([
-      SME.findOne({ sme_id: loanDetails.sme_id }).select('sme_id company_name industry_sector credit_score esg_score trust_score').lean(),
-      Corporate.findOne({ corporate_id: loanDetails.corporate_id }).select('corporate_id corporation_name').lean()
-    ]);
-
-    // Attach for response
-    loanDetails.sme = smeRecord || null;
-    loanDetails.corporate = corporateRecord || null;
-
     // Check if user has access to this loan
-    const userProfile = req.user.user_type === 'SME'
+    const userProfile = req.user.user_type === 'SME' 
       ? await SME.findOne({ user_id: req.user.user_id })
       : await Corporate.findOne({ user_id: req.user.user_id });
 
-    const hasAccess = req.user.user_type === 'SME'
+    const hasAccess = req.user.user_type === 'SME' 
       ? loanDetails.sme_id === userProfile.sme_id
       : loanDetails.corporate_id === userProfile.corporate_id;
 
@@ -350,24 +338,23 @@ const getMyLoans = async (req, res) => {
     }
 
     // Get applications
-    const applications = await LoanApplication.find({ sme_id: sme.sme_id }).sort({ submitted_at: -1 }).lean();
+    const applications = await LoanApplication.find({ sme_id: sme.sme_id })
+      .sort({ submitted_at: -1 });
 
-    // Get active loans and manually populate corporate info (corporate_id is a custom string id)
-    const activeLoans = await LoanDetails.find({ sme_id: sme.sme_id }).sort({ created_at: -1 }).lean();
-    const corporateIds = Array.from(new Set(activeLoans.map(l => l.corporate_id).filter(Boolean)));
-    let corpMap = {};
-    if (corporateIds.length > 0) {
-      const corps = await Corporate.find({ corporate_id: { $in: corporateIds } }).select('corporate_id corporation_name').lean();
-      corpMap = corps.reduce((acc, c) => ({ ...acc, [c.corporate_id]: c }), {});
-    }
-
-    const activeLoansWithCorp = activeLoans.map(l => ({ ...l, corporate: corpMap[l.corporate_id] || null }));
+    // Get active loans
+    const activeLoans = await LoanDetails.find({ sme_id: sme.sme_id })
+      .populate({
+        path: 'corporate_id',
+        model: 'Corporate',
+        select: 'corporation_name'
+      })
+      .sort({ created_at: -1 });
 
     res.json({
       success: true,
       data: {
         applications,
-        active_loans: activeLoansWithCorp
+        active_loans: activeLoans
       }
     });
 

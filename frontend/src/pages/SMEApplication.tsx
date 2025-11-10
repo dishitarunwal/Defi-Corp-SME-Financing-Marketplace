@@ -11,7 +11,6 @@ import {
   X
 } from 'lucide-react';
 import { calculateMonthlyPayment, formatCurrency, validateLoanAmount, validateBusinessYear } from '../utils/calculations';
-import { loanAPI } from '../services/api';
 
 interface SMEApplicationProps {
   onNavigate: (page: string) => void;
@@ -28,8 +27,6 @@ interface ApplicationData {
   monthlyRevenue: number;
   businessDescription: string;
   documents: File[];
-  collateralDescription?: string;
-  collateralValue?: number;
 }
 
 const SMEApplication: React.FC<SMEApplicationProps> = ({ onNavigate }) => {
@@ -45,8 +42,6 @@ const SMEApplication: React.FC<SMEApplicationProps> = ({ onNavigate }) => {
     monthlyRevenue: 0,
     businessDescription: '',
     documents: []
-    ,collateralDescription: ''
-    ,collateralValue: 1000
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,13 +86,6 @@ const SMEApplication: React.FC<SMEApplicationProps> = ({ onNavigate }) => {
         if (amountError) newErrors.push(amountError);
         if (!applicationData.loanPurpose.trim()) newErrors.push('Loan purpose is required');
         if (applicationData.loanPurpose.length < 50) newErrors.push('Loan purpose must be at least 50 characters');
-        // Collateral checks (backend requires collateral description + value)
-        if (!applicationData.collateralDescription || applicationData.collateralDescription.trim().length < 10) {
-          newErrors.push('Collateral description must be at least 10 characters');
-        }
-        if (!applicationData.collateralValue || applicationData.collateralValue < 1000) {
-          newErrors.push('Collateral value must be at least $1,000');
-        }
         break;
 
       case 3:
@@ -138,41 +126,13 @@ const SMEApplication: React.FC<SMEApplicationProps> = ({ onNavigate }) => {
     }
 
     setIsSubmitting(true);
-    setErrors([]);
-    try {
-      const payload = {
-        requested_amount: applicationData.loanAmount,
-        loan_purpose: applicationData.loanPurpose,
-        loan_term_months: applicationData.loanTerm,
-        collateral_description: applicationData.collateralDescription,
-        collateral_value: applicationData.collateralValue
-      };
-
-      const response = await loanAPI.applyForLoan(payload);
-
-      if (response && response.success) {
-        // optionally display application id
-        alert('Application submitted successfully! You will receive a response within 24 hours.');
-        onNavigate('landing');
-      } else {
-        // Unexpected non-success response shape
-        setErrors([response?.message || 'Unexpected response from server']);
-      }
-    } catch (err) {
-      const eAny = err as any;
-      // express-validator returns errors array in eAny.details in our api helper
-      if (eAny?.details && Array.isArray(eAny.details)) {
-        // details may be array of objects { msg, param, ... }
-        const msgs = eAny.details.map((d: any) => d.msg || JSON.stringify(d));
-        setErrors(msgs);
-      } else if (eAny?.message) {
-        setErrors([eAny.message]);
-      } else {
-        setErrors(['Failed to submit application']);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsSubmitting(false);
+    
+    // Show success message or redirect
+    alert('Application submitted successfully! You will receive a response within 24 hours.');
+    onNavigate('landing');
   };
 
   const calculateRate = () => {
@@ -347,34 +307,6 @@ const SMEApplication: React.FC<SMEApplicationProps> = ({ onNavigate }) => {
                       <option key={term.value} value={term.value}>{term.label}</option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Collateral Description *
-                  </label>
-                  <textarea
-                    value={applicationData.collateralDescription}
-                    onChange={(e) => setApplicationData({...applicationData, collateralDescription: e.target.value})}
-                    rows={3}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Describe collateral (minimum 10 characters)"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Collateral Value *
-                  </label>
-                  <input
-                    type="number"
-                    value={applicationData.collateralValue}
-                    onChange={(e) => setApplicationData({...applicationData, collateralValue: parseInt(e.target.value)})}
-                    min="1000"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter collateral value"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">Minimum $1,000</p>
                 </div>
               </div>
 

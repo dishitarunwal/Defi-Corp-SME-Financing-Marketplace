@@ -12,20 +12,20 @@ const loanRoutes = require('./routes/loan');
 
 const app = express();
 
-// CORS configuration
-app.use(cors({
-  origin: [
-    'http://localhost:5173',  // Local development
-    'https://your-vercel-app-url.vercel.app'  // Replace with your Vercel app URL
-  ],
-  credentials: true
-}));
-
 // Connect to MongoDB
 connectDB();
 
 // Security middleware
 app.use(helmet());
+
+// Health check endpoint for Render
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date(),
+    uptime: process.uptime()
+  });
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -39,8 +39,22 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // CORS configuration
+const app = express();
+
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:5173',  // Local development
+  process.env.CORS_ORIGIN   // Production frontend URL (set in env vars)
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 

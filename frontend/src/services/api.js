@@ -42,11 +42,7 @@ const apiRequest = async (endpoint, options = {}) => {
     const data = await response.json();
 
     if (!response.ok) {
-      // Attach backend details (validation errors etc.) to the thrown Error
-      const err = new Error(data.message || 'API request failed');
-      // `data.errors` is commonly used by express-validator; include it when present
-      err.details = data.errors || data;
-      throw err;
+      throw new Error(data.message || 'API request failed');
     }
 
     return data;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   Wallet, 
   TrendingUp, 
@@ -19,8 +19,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency, formatPercentage, getRiskColor, getStatusColor } from '../utils/calculations';
-import { leaderboardData, chartData, mockNotifications } from '../data/mockData';
-import { loanAPI } fr/Users/dishita/Downloads/defi corp final /backendom '../services/api';
+import { mockLoans, leaderboardData, chartData, mockNotifications } from '../data/mockData';
 
 interface CorporateDashboardProps {
   onNavigate: (page: string) => void;
@@ -38,12 +37,7 @@ const CorporateDashboard: React.FC<CorporateDashboardProps> = ({ onNavigate }) =
   const totalFunds = 2800000;
   const totalLent = 1850000;
   const availableFunds = totalFunds - totalLent;
-
-  const [loans, setLoans] = useState<any[]>([]);
-  const [loadingLoans, setLoadingLoans] = useState(false);
-  const [loansError, setLoansError] = useState<string | null>(null);
-
-  const activeLoans = loans.filter(l => l.application_status === 'approved').length || 0;
+  const activeLoans = mockLoans.length;
   const portfolioYield = 11.9;
 
   const getBadgeIcon = (badge: string) => {
@@ -67,58 +61,6 @@ const CorporateDashboard: React.FC<CorporateDashboardProps> = ({ onNavigate }) =
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
-
-  const fetchLoans = useCallback(async (filters = {}) => {
-    setLoadingLoans(true);
-    setLoansError(null);
-    try {
-      const res = await loanAPI.getLoanApplications(filters);
-      // backend returns { success: true, data: { applications, pagination } }
-      const applications = res?.data?.applications || [];
-      setLoans(applications);
-    } catch (err: any) {
-      console.error('Failed to fetch loan applications', err);
-      setLoansError(err?.message || 'Failed to load loan applications');
-    } finally {
-      setLoadingLoans(false);
-    }
-  }, []);
-
-  const handleApprove = async (application: any) => {
-    const confirm = window.confirm(`Approve loan for ${application.sme_id?.company_name || 'this SME'} for ${formatCurrency(application.requested_amount)}?`);
-    if (!confirm) return;
-    try {
-      // Use requested amount as final amount by default
-      await loanAPI.approveLoan(application.application_id, { final_amount: application.requested_amount });
-      // Update local state
-      setLoans((prev) => prev.map(l => l.application_id === application.application_id ? { ...l, application_status: 'approved' } : l));
-      alert('Loan approved successfully');
-    } catch (err: any) {
-      console.error('Approve error', err);
-      alert(err?.message || 'Failed to approve loan');
-    }
-  };
-
-  const handleReject = async (application: any) => {
-    const reason = window.prompt('Enter rejection reason (min 10 characters):');
-    if (!reason || reason.trim().length < 10) {
-      alert('Rejection reason is required and must be at least 10 characters');
-      return;
-    }
-    try {
-      await loanAPI.rejectLoan(application.application_id, { rejection_reason: reason });
-      setLoans((prev) => prev.map(l => l.application_id === application.application_id ? { ...l, application_status: 'rejected', rejection_reason: reason } : l));
-      alert('Loan rejected');
-    } catch (err: any) {
-      console.error('Reject error', err);
-      alert(err?.message || 'Failed to reject loan');
-    }
-  };
-
-  useEffect(() => {
-    // Load applications when dashboard mounts
-    fetchLoans();
-  }, [fetchLoans]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -313,64 +255,72 @@ const CorporateDashboard: React.FC<CorporateDashboardProps> = ({ onNavigate }) =
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {loadingLoans ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">Loading applications...</td>
+                  {mockLoans.map((loan) => (
+                    <tr key={loan.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{loan.businessName}</div>
+                          <div className="text-sm text-gray-500">{loan.industry}</div>
+                          <div className="flex items-center mt-1">
+                            <CheckCircle2 className="h-3 w-3 text-green-600 mr-1" />
+                            <span className="text-xs text-green-600">Verified</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(loan.amount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full text-white`}
+                          style={{ backgroundColor: getRiskColor(loan.riskGrade) }}
+                        >
+                          Grade {loan.riskGrade}
+                        </span>
+                        <div className="text-xs text-gray-500 mt-1">Trust: {loan.trustScore}%</div>
+                        <div className="flex items-center mt-1">
+                          <Leaf className="h-3 w-3 text-green-600 mr-1" />
+                          <span className="text-xs text-green-600">ESG: {loan.esgScore}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full`}
+                          style={{ 
+                            color: getStatusColor(loan.status),
+                            backgroundColor: `${getStatusColor(loan.status)}15` 
+                          }}
+                        >
+                          {loan.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${((loan.amount - loan.remainingBalance) / loan.amount) * 100}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {formatCurrency(loan.amount - loan.remainingBalance)} / {formatCurrency(loan.amount)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button 
+                          onClick={() => onNavigate('loan-management')}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button className="text-gray-600 hover:text-gray-800">
+                          <Download className="h-4 w-4" />
+                        </button>
+                        <button className="text-green-600 hover:text-green-800">
+                          <MessageCircle className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
-                  ) : loansError ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-red-600">{loansError}</td>
-                    </tr>
-                  ) : loans.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No loan applications found</td>
-                    </tr>
-                  ) : (
-                    loans.map((app: any) => {
-                      const businessName = app.sme?.company_name || '—';
-                      const industry = app.sme?.industry_sector || '—';
-                      const trustScore = app.sme?.trust_score ?? '—';
-                      const esgScore = app.sme?.esg_score ?? '—';
-                      const riskGrade = app.risk_grade || 'C';
-                      const status = app.application_status || 'pending';
-                      const amount = app.requested_amount || 0;
-                      const submittedAt = app.submitted_at ? new Date(app.submitted_at).toLocaleString() : '-';
-
-                      return (
-                        <tr key={app.application_id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{businessName}</div>
-                              <div className="text-sm text-gray-500">{industry}</div>
-                              <div className="flex items-center mt-1">
-                                <CheckCircle2 className="h-3 w-3 text-green-600 mr-1" />
-                                <span className="text-xs text-green-600">Verified</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(amount)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full text-white`} style={{ backgroundColor: getRiskColor(riskGrade) }}>Grade {riskGrade}</span>
-                            <div className="text-xs text-gray-500 mt-1">Trust: {trustScore}%</div>
-                            <div className="flex items-center mt-1"><Leaf className="h-3 w-3 text-green-600 mr-1" /><span className="text-xs text-green-600">ESG: {esgScore}</span></div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full`} style={{ color: getStatusColor(status), backgroundColor: `${getStatusColor(status)}15` }}>{status}</span>
-                            <div className="text-xs text-gray-400 mt-1">{submittedAt}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-xs text-gray-500">Application</div>
-                            <div className="text-sm text-gray-900">{app.application_id}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <button onClick={() => onNavigate('loan-management')} className="text-blue-600 hover:text-blue-800"><Eye className="h-4 w-4" /></button>
-                            <button onClick={() => handleApprove(app)} disabled={status !== 'pending'} className={`px-3 py-2 rounded text-white ${status === 'pending' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'}`}>Approve</button>
-                            <button onClick={() => handleReject(app)} disabled={status !== 'pending'} className={`px-3 py-2 rounded text-white ${status === 'pending' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-300 cursor-not-allowed'}`}>Reject</button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>

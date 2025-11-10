@@ -5,7 +5,6 @@ import Landing from './pages/Landing';
 import CorporateDashboard from './pages/CorporateDashboard';
 import SMEApplication from './pages/SMEApplication';
 import LoanManagement from './pages/LoanManagement';
-import SMEStatus from './pages/SMEStatus';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 
@@ -90,19 +89,12 @@ const AppContent: React.FC = () => {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'landing':
-        if (user?.user_type === 'SME') {
-          return <SMEStatus />;
-        }
         return <Landing onNavigate={handleNavigate} />;
       case 'corporate':
         return <CorporateDashboard onNavigate={handleNavigate} />;
       case 'sme':
         return <SMEApplication onNavigate={handleNavigate} />;
       case 'loan-management':
-        // If the logged-in user is an SME, show the SME loan status page; otherwise show the corporate loan management view
-        if (user?.user_type === 'SME') {
-          return <SMEStatus />;
-        }
         return <LoanManagement onNavigate={handleNavigate} />;
       default:
         return <Landing onNavigate={handleNavigate} />;
