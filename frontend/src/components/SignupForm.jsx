@@ -69,7 +69,13 @@ const SignupForm = ({ onNavigate, onClose }) => {
         }
       };
 
-      const response = await signup(signupData);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}api/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(signupData)
+      });
       if (response.success) {
         onClose();
         // Navigate based on user type
@@ -480,7 +486,7 @@ const SignupForm = ({ onNavigate, onClose }) => {
             )}
           </div>
 
-          <button
+          <button onClick={handleSubmit}
             type="submit"
             disabled={!validateStep(currentStep) || loading}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
