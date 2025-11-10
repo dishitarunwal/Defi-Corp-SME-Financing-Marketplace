@@ -48,7 +48,7 @@ app.use('/api/', limiter);
 
 // CORS configuration
 const allowedOrigins = [
-  'http://localhost:5173',  // Local development
+  process.env.FRONTEND_URL,  // Local development
   process.env.CORS_ORIGIN   // Production frontend URL (set in env vars)
 ].filter(Boolean);
 
