@@ -24,7 +24,8 @@ router.post('/signup', [
     .isLength({ min: 2 })
     .withMessage('Full name must be at least 2 characters long'),
   body('phone_number')
-    .isMobilePhone()
+    .trim()
+    .matches(/^\+?[0-9][0-9\s-]{6,18}[0-9]$/)
     .withMessage('Please provide a valid phone number'),
   body('company_details')
     .isObject()

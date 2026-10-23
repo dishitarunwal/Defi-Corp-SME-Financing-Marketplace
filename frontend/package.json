@@ -1,25 +1,21 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "deficorp-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "backend": "cd ../backend && npm run dev"
+    "backend": "cd ../backend && npm run dev",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@supabase/supabase-js": "^2.57.4",
-    "framer-motion": "^12.23.18",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-hook-form": "^7.63.0",
-    "recharts": "^3.2.1",
-    "yup": "^1.7.1"
+    "recharts": "^3.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

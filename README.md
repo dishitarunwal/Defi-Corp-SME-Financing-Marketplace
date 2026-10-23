@@ -1,248 +1,154 @@
-# DeFiCorp - Complete Full-Stack Platform
+# DeFiCorp - Corporate Treasury & SME Lending Platform
 
-A comprehensive blockchain-enabled corporate treasury microfinance platform that connects corporations with excess cash to small businesses needing quick loans.
+A full-stack MERN platform that connects corporations with excess treasury cash to small and medium businesses (SMEs) that need fast, transparent loans. Loan agreements, disbursements and repayments are tracked on a (simulated) blockchain ledger.
 
 ## 🏗️ Architecture
 
 ```
 📁 project-root/
- ┣ 📁 frontend/  → React + TypeScript + Tailwind CSS
- ┗ 📁 backend/   → Node.js + Express + MongoDB
+ ┣ 📁 frontend/    → React 18 + TypeScript + Tailwind CSS + Recharts (Vite)
+ ┣ 📁 backend/     → Node.js + Express + MongoDB (Mongoose) + JWT
+ ┣ 📁 blockchain/  → Solidity contracts + Hardhat (lending pool, stable token, price feed)
+ ┗ 📄 render.yaml  → Render blueprint for the backend
 ```
 
 ## 🚀 Features
 
-### Frontend (React + TypeScript)
-- **Landing Page**: Marketing site with testimonials, features, and user onboarding
-- **Corporate Dashboard**: Portfolio analytics, loan management, and leaderboard
-- **SME Application**: Multi-step loan application with real-time validation
-- **Loan Management**: Detailed loan oversight and communication system
-- **Authentication**: JWT-based auth with role-based access control
+### SME (borrower)
+- Multi-step loan application pre-filled from the business profile
+- **Instant quote** from the risk engine (grade, rate, monthly payment) while you type
+- Application tracking with approval / rejection status and reasons
+- Loan dashboard: amortisation schedule, repayments ("Make Payment"), on-chain ledger, messaging with the lender
 
-### Backend (Node.js + Express)
-- **RESTful API**: Complete CRUD operations for all entities
-- **MongoDB Integration**: Mongoose ODM with proper schemas and relationships
-- **JWT Authentication**: Secure token-based authentication
-- **Role-based Access**: SME and Corporate user types with different permissions
-- **Loan Processing**: Complete loan application and approval workflow
+### Corporate (lender)
+- Portfolio dashboard: available funds, capital deployed, yield, ESG score, monthly disbursement/repayment chart, risk distribution
+- **Application review**: approve with adjustable amount / rate / term, or reject with a reason
+- Loan portfolio with repayment progress, industry & ESG analytics, lender leaderboard
+- Add funds to the lending pool
 
-## 🛠️ Tech Stack
+### Platform
+- JWT authentication with SME / Corporate role-based access
+- Rule-based credit scoring (credit, ESG and trust scores; collateral cover and leverage drive the risk grade A–D)
+- Notifications, wallet details, deep-linkable pages (hash routing - refresh and back/forward work)
+- Demo data seeded automatically so every screen has realistic content
 
-### Frontend
-- **React 18** with TypeScript
-- **Tailwind CSS** for styling
-- **Recharts** for data visualization
-- **Lucide React** for icons
-- **Vite** for build tooling
+## 🔗 Blockchain integration (simulation mode)
 
-### Backend
-- **Node.js** with Express.js
-- **MongoDB** with Mongoose ODM
-- **JWT** for authentication
-- **bcryptjs** for password hashing
-- **express-validator** for input validation
-- **helmet** for security headers
-- **cors** for cross-origin requests
+The `blockchain/` folder contains the Solidity design (`DefiCorpLendingPool`, `MockStableToken`, `MockPriceFeed`).
+The live app does **not** require a blockchain node: `backend/services/blockchainSimulator.js` produces the same
+records a deployment would - a contract address per loan, transaction hashes, block numbers and gas usage for
+deployment, disbursement, repayments and closure - and stores them with each loan. These are shown in the
+**Blockchain** tab of every loan.
+
+To compile or deploy the real contracts later:
+
+```bash
+cd blockchain
+npm install
+npm run compile                 # works without any .env
+cp .env.example .env            # add ALCHEMY_URL + PRIVATE_KEY
+npm run deploy:sepolia
+```
 
 ## 📦 Installation & Setup
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- MongoDB Atlas account
-- Git
+- Node.js 18+
+- A MongoDB database (MongoDB Atlas or local `mongod`)
 
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd deficorp-platform
-```
-
-### 2. Backend Setup
+### 1. Backend
 ```bash
 cd backend
 npm install
-
-# Create environment file
-cp .env.example .env
-# Edit .env with your MongoDB connection string and JWT secret
-
-# Start backend server
-npm run dev
+cp .env.example .env      # set MONGODB_URI and JWT_SECRET
+npm run dev               # http://localhost:5050
 ```
 
-### 3. Frontend Setup
+### 2. Frontend
 ```bash
 cd frontend
 npm install
-
-# Create environment file
-cp .env.example .env
-# Edit .env with your API URL
-
-# Start frontend development server
-npm run dev
+cp .env.example .env      # VITE_API_URL=http://localhost:5050/api
+npm run dev               # http://localhost:5173
 ```
 
-### 4. MongoDB Setup
-1. Create a MongoDB Atlas account
-2. Create a new cluster
-3. Get your connection string
-4. Update `MONGODB_URI` in backend/.env
+### 3. Demo accounts
+Created automatically on first start (or run `npm run seed` in `backend/`). Password for all: `password123`
+
+| Role | Email |
+|------|-------|
+| SME | daksh.mishra@techventures.com |
+| Corporate | dhiti.wadhwa@financecorp.com |
+
+The login dialog has one-click buttons for both. Set `SEED_DEMO_DATA=false` to disable seeding.
 
 ## 🔧 Environment Variables
 
-### Backend (.env)
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/deficorp
-JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRE=7d
-PORT=5000
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-```
+### Backend (`backend/.env`)
+| Variable | Description |
+|----------|-------------|
+| `MONGODB_URI` | MongoDB connection string (**required**) |
+| `JWT_SECRET` | Secret used to sign tokens (**required**) |
+| `JWT_EXPIRE` | Token lifetime, default `7d` |
+| `PORT` | Default `5050` |
+| `CORS_ORIGIN` / `FRONTEND_URL` | `*` or a comma-separated list of allowed origins |
+| `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS` | Rate limiting, default 500 requests / 15 min |
+| `SEED_DEMO_DATA` | `true` (default) creates demo accounts if missing |
 
-### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:5000/api
-VITE_APP_NAME=DeFiCorp
-VITE_APP_VERSION=1.0.0
-```
-
-## 📊 Database Schema
-
-### Collections
-- **users**: User authentication and basic info
-- **smes**: SME business profiles
-- **corporates**: Corporate lender profiles
-- **loanapplications**: Loan application submissions
-- **loandetails**: Active loan information
-
-### Key Relationships
-- User → SME/Corporate (1:1)
-- SME → LoanApplication (1:many)
-- Corporate → LoanDetails (1:many)
-- LoanApplication → LoanDetails (1:1 when approved)
+### Frontend (`frontend/.env`)
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | Backend URL, with or without the trailing `/api` |
 
 ## 🔐 API Endpoints
 
 ### Authentication
-- `POST /api/auth/signup` - Register new user
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user profile
+- `POST /api/auth/signup` - Register (SME or Corporate, with company details)
+- `POST /api/auth/login` - Log in
+- `GET /api/auth/me` - Current user + profile
 
-### Loan Management
-- `POST /api/loan/apply` - Submit loan application (SME)
-- `GET /api/loan/applications` - Get all applications (Corporate)
-- `PATCH /api/loan/:id/approve` - Approve loan (Corporate)
-- `PATCH /api/loan/:id/reject` - Reject loan (Corporate)
-- `GET /api/loan/details/:id` - Get loan details
-- `GET /api/loan/my-loans` - Get SME's loans
+### SME
+- `POST /api/loan/quote` - Risk grade, rate and repayment preview
+- `POST /api/loan/apply` - Submit a loan application
+- `GET /api/loan/my-loans` - Applications and loans
+- `POST /api/loan/details/:id/repay` - Make a repayment
 
-## 👥 User Roles & Permissions
+### Corporate
+- `GET /api/loan/applications?status=pending` - Applications to review
+- `PATCH /api/loan/:id/approve` - Approve (optionally with final amount / rate / term)
+- `PATCH /api/loan/:id/reject` - Reject with a reason
+- `GET /api/loan/portfolio` - Portfolio, loans and analytics
+- `GET /api/loan/leaderboard` - Lender leaderboard
+- `POST /api/loan/treasury/deposit` - Add funds to the lending pool
 
-### SME Users
-- Submit loan applications
-- View application status
-- Manage active loans
-- Communicate with lenders
-
-### Corporate Users
-- View all loan applications
-- Approve/reject applications
-- Manage loan portfolio
-- Track performance metrics
+### Shared
+- `GET /api/loan/details/:id` - Loan details (borrower or lender only)
+- `POST /api/loan/details/:id/messages` - Message the other party
+- `GET /api/health` - Health check
 
 ## 🔄 Loan Workflow
 
-1. **SME Application**: SME submits loan application with business details
-2. **Risk Assessment**: System calculates risk grade based on business metrics
-3. **Corporate Review**: Corporate users review applications
-4. **Approval/Rejection**: Corporate decides on loan terms
-5. **Loan Creation**: Approved applications become active loans
-6. **Monitoring**: Both parties track loan progress and payments
-
-## 🎨 Design System
-
-### Colors
-- **Primary**: #1E40AF (Deep Blue)
-- **Secondary**: #059669 (Emerald Green)
-- **Accent**: #EA580C (Orange)
-- **Muted**: #F8FAFC (Light Gray)
-- **Destructive**: #d4183d (Red)
-
-### Components
-- Professional fintech aesthetic
-- Responsive design for all devices
-- Advanced data visualizations
-- Interactive forms with validation
-- Real-time notifications
+1. **Apply** - SME submits an application; the risk engine assigns grade A–D and a rate (8.5%–15%)
+2. **Review** - Corporate lenders see pending applications with credit, ESG and collateral data
+3. **Approve** - A loan contract is deployed and funds are disbursed from the lender's pool
+4. **Repay** - The SME pays installments; each payment is recorded on the ledger and returned to the lender's pool
+5. **Close** - When fully repaid the loan is marked completed and the contract closed
 
 ## 🚀 Deployment
 
-### Backend Deployment
-1. Set up MongoDB Atlas production cluster
-2. Configure environment variables
-3. Deploy to your preferred platform (Heroku, AWS, etc.)
+### Backend (Render)
+`render.yaml` defines the service (root `backend/`, health check `/api/health`). Set `MONGODB_URI` in the Render dashboard; `JWT_SECRET` is generated automatically.
 
-### Frontend Deployment
-1. Update API URL in environment variables
-2. Build the application: `npm run build`
-3. Deploy to static hosting (Netlify, Vercel, etc.)
+### Frontend (Vercel / Netlify)
+Set `VITE_API_URL` to your backend URL, build with `npm run build`, and publish `frontend/dist`. No rewrite rules are needed (hash routing).
 
 ## 🧪 Testing
 
-### Backend Testing
 ```bash
-cd backend
-npm test
+cd backend && npm test        # risk engine + blockchain simulator unit tests
+cd frontend && npm run lint && npm run typecheck
 ```
-
-### Frontend Testing
-```bash
-cd frontend
-npm test
-```
-
-## 📈 Performance Features
-
-- **Pagination**: Efficient data loading for large datasets
-- **Caching**: Strategic caching for improved performance
-- **Validation**: Real-time form validation
-- **Error Handling**: Comprehensive error management
-- **Security**: JWT tokens, input sanitization, rate limiting
-
-## 🔒 Security Features
-
-- **JWT Authentication**: Secure token-based auth
-- **Password Hashing**: bcrypt for secure password storage
-- **Input Validation**: Server-side validation for all inputs
-- **CORS Protection**: Configured for secure cross-origin requests
-- **Rate Limiting**: Protection against abuse
-- **Helmet**: Security headers for Express
-
-## 📱 Mobile Responsiveness
-
-- Fully responsive design
-- Touch-friendly interfaces
-- Mobile-optimized navigation
-- Adaptive layouts for all screen sizes
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
-
-## 📞 Support
-
-For support and questions, please contact the development team or create an issue in the repository.
-
----
-
-**DeFiCorp** - Revolutionizing Corporate Treasury & SME Finance through blockchain technology.
+MIT

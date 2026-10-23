@@ -3,9 +3,19 @@ require("dotenv").config();
 
 const { ALCHEMY_URL, PRIVATE_KEY } = process.env;
 
-if (!ALCHEMY_URL || !PRIVATE_KEY) {
-  console.error("❌ Missing ALCHEMY_URL or PRIVATE_KEY in .env");
-  process.exit(1);
+const networks = {
+  hardhat: {
+    chainId: 31337,
+  },
+};
+
+// Sepolia is only configured when credentials are provided, so compiling
+// and running locally works without a .env file.
+if (ALCHEMY_URL && PRIVATE_KEY) {
+  networks.sepolia = {
+    url: ALCHEMY_URL,
+    accounts: [PRIVATE_KEY],
+  };
 }
 
 module.exports = {
@@ -18,13 +28,5 @@ module.exports = {
       },
     },
   },
-  networks: {
-    sepolia: {
-      url: ALCHEMY_URL,
-      accounts: [PRIVATE_KEY],
-    },
-    hardhat: {
-      chainId: 1337,
-    },
-  },
+  networks,
 };

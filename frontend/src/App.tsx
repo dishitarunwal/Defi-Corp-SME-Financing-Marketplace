@@ -1,101 +1,149 @@
-import React, { useState } from 'react';
-import { AuthProvider, useAuth } from './components/AuthWrapper';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AuthProvider } from './components/AuthProvider';
+import { ToastProvider } from './components/ToastProvider';
+import { useAuth } from './context/auth';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import CorporateDashboard from './pages/CorporateDashboard';
 import SMEApplication from './pages/SMEApplication';
+import SMEStatus from './pages/SMEStatus';
 import LoanManagement from './pages/LoanManagement';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
+import { Modal, PageLoader } from './components/ui';
+import type { Page, UserType } from './types';
 
-// Modal Component
-const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.ReactNode }> = ({ 
-  isOpen, 
-  onClose, 
-  children 
-}) => {
-  if (!isOpen) return null;
+const PAGES: Page[] = ['landing', 'corporate', 'sme', 'sme-status', 'loan-management'];
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {/* Title will be handled by the form components */}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-          >
-            ×
-          </button>
-        </div>
-        <div className="p-6">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+// Which user type may open each page (null = public)
+const PAGE_ROLES: Record<Page, UserType | 'ANY' | null> = {
+  landing: null,
+  corporate: 'CORPORATE',
+  sme: 'SME',
+  'sme-status': 'SME',
+  'loan-management': 'ANY'
 };
 
-// Main App Content Component
+const homeFor = (userType: UserType): Page => (userType === 'CORPORATE' ? 'corporate' : 'sme-status');
+
+interface Route {
+  page: Page;
+  param?: string;
+}
+
+const parseHash = (): Route => {
+  const [page, param] = window.location.hash.replace(/^#\/?/, '').split('/');
+  if (PAGES.includes(page as Page)) {
+    return { page: page as Page, param: param ? decodeURIComponent(param) : undefined };
+  }
+  return { page: 'landing' };
+};
+
+const toHash = ({ page, param }: Route) =>
+  page === 'landing' ? '#/' : `#/${page}${param ? `/${encodeURIComponent(param)}` : ''}`;
+
 const AppContent: React.FC = () => {
   const { isAuthenticated, user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState('landing');
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [route, setRoute] = useState<Route>(parseHash);
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
+  const [signupType, setSignupType] = useState<UserType | null>(null);
+  const [pendingRoute, setPendingRoute] = useState<Route | null>(null);
 
-  // Handle navigation
-  const handleNavigate = (page: string) => {
-    if (page === 'login') {
+  useEffect(() => {
+    const onHashChange = () => setRoute(parseHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const go = useCallback((next: Route) => {
+    const hash = toHash(next);
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    }
+    setRoute(next);
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  const handleNavigate = useCallback((target: string, param?: string) => {
+    if (target === 'login' || target === 'signup') {
+      setSignupType(null);
+      setAuthMode(target);
+      return;
+    }
+
+    const page = (PAGES.includes(target as Page) ? target : 'landing') as Page;
+    const role = PAGE_ROLES[page];
+
+    if (role && !isAuthenticated) {
+      // Remember where the user was heading and ask them to sign up / sign in first
+      setPendingRoute({ page, param });
+      setSignupType(role === 'ANY' ? null : role);
+      setAuthMode(role === 'ANY' ? 'login' : 'signup');
+      return;
+    }
+
+    if (role && role !== 'ANY' && user && user.user_type !== role) {
+      go({ page: homeFor(user.user_type) });
+      return;
+    }
+
+    go({ page, param });
+  }, [isAuthenticated, user, go]);
+
+  // Guard direct URL access (refresh, shared links, back button)
+  useEffect(() => {
+    if (loading) return;
+    const role = PAGE_ROLES[route.page];
+    if (!role) return;
+
+    if (!isAuthenticated) {
+      setPendingRoute(route);
       setAuthMode('login');
-      setShowAuthModal(true);
-      return;
+      go({ page: 'landing' });
+    } else if (role !== 'ANY' && user && user.user_type !== role) {
+      go({ page: homeFor(user.user_type) });
     }
-    
-    if (page === 'signup') {
-      setAuthMode('signup');
-      setShowAuthModal(true);
-      return;
-    }
+  }, [route, loading, isAuthenticated, user, go]);
 
-    setCurrentPage(page);
-    setShowAuthModal(false);
+  const handleAuthSuccess = (userType: UserType) => {
+    setAuthMode(null);
+    const pendingRole = pendingRoute ? PAGE_ROLES[pendingRoute.page] : null;
+    if (pendingRoute && (pendingRole === 'ANY' || pendingRole === userType)) {
+      go(pendingRoute);
+    } else {
+      go({ page: homeFor(userType) });
+    }
+    setPendingRoute(null);
   };
 
-  // Handle auth modal navigation
-  const handleAuthNavigate = (mode: 'login' | 'signup') => {
-    setAuthMode(mode);
-  };
-
-  // Close auth modal
   const closeAuthModal = () => {
-    setShowAuthModal(false);
+    setAuthMode(null);
+    setPendingRoute(null);
   };
 
-  // Show loading spinner while checking auth
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading DeFiCorp...</p>
-        </div>
+        <PageLoader label="Loading DeFiCorp..." />
       </div>
     );
   }
 
-  // Determine which page to show
+  const role = PAGE_ROLES[route.page];
+  const canView = !role || (isAuthenticated && (role === 'ANY' || user?.user_type === role));
+
   const renderCurrentPage = () => {
-    switch (currentPage) {
-      case 'landing':
-        return <Landing onNavigate={handleNavigate} />;
+    if (!canView) return <Landing onNavigate={handleNavigate} />;
+
+    switch (route.page) {
       case 'corporate':
-        return <CorporateDashboard onNavigate={handleNavigate} />;
+        return <CorporateDashboard key={route.param || 'overview'} onNavigate={handleNavigate} initialTab={route.param} />;
       case 'sme':
         return <SMEApplication onNavigate={handleNavigate} />;
+      case 'sme-status':
+        return <SMEStatus onNavigate={handleNavigate} />;
       case 'loan-management':
-        return <LoanManagement onNavigate={handleNavigate} />;
+        return <LoanManagement onNavigate={handleNavigate} loanId={route.param} />;
       default:
         return <Landing onNavigate={handleNavigate} />;
     }
@@ -103,27 +151,19 @@ const AppContent: React.FC = () => {
 
   return (
     <>
-      <Layout
-        currentPage={currentPage}
-        onNavigate={handleNavigate}
-        showHeader={true}
-        isAuthenticated={isAuthenticated}
-        user={user}
-      >
+      <Layout currentPage={canView ? route.page : 'landing'} onNavigate={handleNavigate}>
         {renderCurrentPage()}
       </Layout>
 
-      {/* Authentication Modal */}
-      <Modal isOpen={showAuthModal} onClose={closeAuthModal}>
+      <Modal isOpen={authMode !== null} onClose={closeAuthModal} maxWidth="max-w-3xl">
         {authMode === 'login' ? (
-          <LoginForm 
-            onNavigate={handleAuthNavigate}
-            onClose={closeAuthModal}
-          />
+          <LoginForm onSwitchMode={setAuthMode} onSuccess={handleAuthSuccess} />
         ) : (
-          <SignupForm 
-            onNavigate={handleAuthNavigate}
-            onClose={closeAuthModal}
+          <SignupForm
+            key={signupType || 'any'}
+            onSwitchMode={setAuthMode}
+            onSuccess={handleAuthSuccess}
+            defaultUserType={signupType}
           />
         )}
       </Modal>
@@ -131,14 +171,13 @@ const AppContent: React.FC = () => {
   );
 };
 
-// Main App Component with Auth Provider
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <div className="App">
+    <ToastProvider>
+      <AuthProvider>
         <AppContent />
-      </div>
-    </AuthProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 };
 

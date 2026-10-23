@@ -5,8 +5,6 @@ import {
   TrendingUp, 
   Leaf, 
   Award, 
-  Users, 
-  DollarSign,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +13,7 @@ import {
   Briefcase,
   X
 } from 'lucide-react';
-import { formatCurrency } from '../utils/calculations';
+import { formatCompactCurrency } from '../utils/calculations';
 import { testimonials } from '../data/mockData';
 
 interface LandingProps {
@@ -60,7 +58,7 @@ const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
 
   const smeBenefits = [
     { title: 'Lightning Approval', description: '24-hour application review with AI assessment' },
-    { title: 'Competitive Rates', description: '5.9-18% APR based on blockchain-verified credit scoring' },
+    { title: 'Competitive Rates', description: '8.5-15% APR based on transparent, data-driven credit scoring' },
     { title: 'Transparent Process', description: 'Real-time tracking of application and payment status' },
     { title: 'Flexible Terms', description: '6-60 month terms with no prepayment penalties' }
   ];
@@ -72,7 +70,7 @@ const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
     },
     {
       question: 'What loan amounts are available for SMEs?',
-      answer: 'We offer loans ranging from $5,000 to $500,000, designed to meet various business needs from equipment purchases to working capital and expansion funding.'
+      answer: 'We offer loans ranging from ₹5,000 to ₹5 crore, designed to meet various business needs from equipment purchases to working capital and expansion funding.'
     },
     {
       question: 'How is creditworthiness assessed?',
@@ -143,7 +141,7 @@ const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
               <div className="card-hover bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-8 border border-white border-opacity-20">
                 <Briefcase className="h-12 w-12 text-green-400 mb-4 mx-auto" />
                 <h3 className="text-2xl font-bold mb-4">Business Owners</h3>
-                <p className="text-gray-300 mb-6">Access fast funding from $5K-$500K with competitive rates and transparent terms</p>
+                <p className="text-gray-300 mb-6">Access fast funding from ₹5,000 to ₹5 Cr with competitive rates and transparent terms</p>
                 <button 
                   onClick={() => onNavigate('sme')}
                   className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105"
@@ -156,7 +154,7 @@ const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
             {/* Platform Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-400 mb-2">{formatCurrency(2800000000)}</div>
+                <div className="text-4xl font-bold text-green-400 mb-2">{formatCompactCurrency(2800000000)}+</div>
                 <div className="text-gray-300">Loans Facilitated</div>
               </div>
               <div className="text-center">
@@ -461,7 +459,7 @@ const Landing: React.FC<LandingProps> = ({ onNavigate }) => {
                 <div className="text-center">
                   <Briefcase className="h-12 w-12 text-green-600 mx-auto mb-4" />
                   <h4 className="text-xl font-bold text-gray-900 mb-3">Business Owner</h4>
-                  <p className="text-gray-600 mb-6">Access fast, affordable funding from $5K to $500K with transparent terms and rapid approval</p>
+                  <p className="text-gray-600 mb-6">Access fast, affordable funding from ₹5,000 to ₹5 Cr with transparent terms and rapid approval</p>
                   <button
                     onClick={() => {
                       setShowUserTypeDialog(false);

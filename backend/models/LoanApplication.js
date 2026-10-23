@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { uniqueId } = require('../utils/ids');
 
 const loanApplicationSchema = new mongoose.Schema({
   application_id: {
@@ -40,6 +41,14 @@ const loanApplicationSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  monthly_revenue: {
+    type: Number,
+    default: null
+  },
+  business_description: {
+    type: String,
+    default: null
+  },
   risk_grade: {
     type: String,
     enum: ['A', 'B', 'C', 'D'],
@@ -63,19 +72,40 @@ const loanApplicationSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  loan_id: {
+    type: String,
+    default: null
+  },
   submitted_at: {
     type: Date,
     default: Date.now
   }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Generate application ID before saving
-loanApplicationSchema.pre('save', function(next) {
+// Generate application ID before validation (required fields are checked during validation)
+loanApplicationSchema.pre('validate', function(next) {
   if (!this.application_id) {
-    const timestamp = Date.now();
-    this.application_id = `app_${this.sme_id}_${timestamp}`;
+    this.application_id = uniqueId(`app_${this.sme_id}`);
   }
   next();
+});
+
+// sme_id / reviewed_by are business IDs (strings), not ObjectIds, so relations use virtuals
+loanApplicationSchema.virtual('sme', {
+  ref: 'SME',
+  localField: 'sme_id',
+  foreignField: 'sme_id',
+  justOne: true
+});
+
+loanApplicationSchema.virtual('reviewer', {
+  ref: 'Corporate',
+  localField: 'reviewed_by',
+  foreignField: 'corporate_id',
+  justOne: true
 });
 
 module.exports = mongoose.model('LoanApplication', loanApplicationSchema);
